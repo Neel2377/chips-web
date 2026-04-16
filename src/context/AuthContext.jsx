@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, useState } from 'react'
-
-const AuthContext = createContext(null)
+import { useEffect, useState } from 'react'
+import { auth, googleProvider, signInWithPopup } from '../firebaseConfig.js'
+import { AuthContext } from './AuthContextObject.js'
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
@@ -21,8 +21,9 @@ export const AuthProvider = ({ children }) => {
         return
       }
 
+      const baseUrl = import.meta.env.VITE_API_URL || ''
       try {
-        const response = await fetch('/api/auth/me', {
+        const response = await fetch(`${baseUrl}/api/auth/me`, {
           headers: {
             Authorization: `Bearer ${storedToken}`,
           },
@@ -39,7 +40,7 @@ export const AuthProvider = ({ children }) => {
 
         const data = await response.json()
         setUser(data.user)
-      } catch (error) {
+      } catch {
         localStorage.removeItem('authToken')
         localStorage.removeItem('authUser')
         setUser(null)
@@ -103,7 +104,10 @@ export const AuthProvider = ({ children }) => {
       headers.Authorization = `Bearer ${authToken}`
     }
 
-    const response = await fetch(path, {
+    const baseUrl = import.meta.env.VITE_API_URL || ''
+    const url = `${baseUrl}${path}`
+
+    const response = await fetch(url, {
       ...options,
       headers,
     })
@@ -133,6 +137,29 @@ export const AuthProvider = ({ children }) => {
     return data
   }
 
+  const googleLogin = async () => {
+    if (!import.meta.env.VITE_FIREBASE_API_KEY) {
+      throw new Error('Google authentication is not configured.')
+    }
+
+    const result = await signInWithPopup(auth, googleProvider)
+    const profile = result.user
+    const name = profile.displayName || profile.email?.split('@')[0] || 'Google User'
+    const email = profile.email
+
+    if (!email) {
+      throw new Error('Google account email is required.')
+    }
+
+    const data = await apiRequest('/api/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ name, email }),
+    })
+
+    saveToken(data.token, data.user)
+    return data
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -144,6 +171,7 @@ export const AuthProvider = ({ children }) => {
         apiRequest,
         login,
         signup,
+        googleLogin,
         logout,
       }}
     >
@@ -152,4 +180,4 @@ export const AuthProvider = ({ children }) => {
   )
 }
 
-export const useAuth = () => useContext(AuthContext)
+export default AuthProvider

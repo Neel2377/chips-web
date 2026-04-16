@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { useEffect, useState } from 'react'
-import { useAuth } from '../context/AuthContext.jsx'
+import { useAuth } from '../context/useAuth.jsx'
 
 const API_URL = '/api'
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1607544863095-61f6d773ef4f?auto=format&fit=crop&w=1200&q=80'

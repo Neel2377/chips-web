@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext.jsx'
+import { useAuth } from '../context/useAuth.jsx'
 
 const Signup = () => {
-  const { isAuthenticated, loading: authLoading, signup } = useAuth()
+  const { isAuthenticated, loading: authLoading, signup, googleLogin } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [redirectTarget, setRedirectTarget] = useState('')
 
   useEffect(() => {
@@ -57,6 +58,20 @@ const Signup = () => {
     }
   }
 
+  const handleGoogleSignIn = async () => {
+    setError('')
+    setGoogleLoading(true)
+
+    try {
+      await googleLogin()
+      setRedirectTarget('/profile')
+    } catch (googleError) {
+      setError(googleError.message || 'Google sign-in failed. Please try again.')
+    } finally {
+      setGoogleLoading(false)
+    }
+  }
+
   return (
     <div className="auth-page container py-5">
       <div className="row justify-content-center">
@@ -66,6 +81,15 @@ const Signup = () => {
             <h2 className="text-white mb-3">Create account</h2>
             <p className="text-white mb-4">Register a new user to start browsing chips, ordering, and managing your profile.</p>
             {error && <div className="alert alert-danger">{error}</div>}
+            <button
+              type="button"
+              className="btn btn-outline-light btn-lg w-100 mb-3"
+              onClick={handleGoogleSignIn}
+              disabled={googleLoading}
+            >
+              {googleLoading ? 'Signing in with Google...' : 'Continue with Google'}
+            </button>
+            <div className="text-center text-muted mb-4">or create an account with email</div>
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
                 <label className="form-label">Name</label>

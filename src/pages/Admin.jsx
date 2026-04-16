@@ -33,14 +33,18 @@ const Admin = () => {
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [expandedOrderId, setExpandedOrderId] = useState('')
   const [orderFilter, setOrderFilter] = useState('all')
 
   const request = async (path, options = {}) => {
     const token = localStorage.getItem('authToken')
     const headers = {
-      'Content-Type': 'application/json',
       ...(options.headers || {}),
+    }
+
+    if (!(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json'
     }
 
     if (token) {
@@ -57,6 +61,42 @@ const Admin = () => {
       throw new Error(data.message || 'Request failed')
     }
     return response.json()
+  }
+
+  const handleImageFileChange = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setError('')
+    setStatus('')
+    setUploadingImage(true)
+
+    try {
+      const token = localStorage.getItem('authToken')
+      const formData = new FormData()
+      formData.append('image', file)
+
+      const response = await fetch(`${API_URL}/upload`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.message || 'Upload failed')
+      }
+
+      const data = await response.json()
+      setForm((current) => ({ ...current, image: data.url }))
+      setStatus('Image uploaded successfully.')
+    } catch (err) {
+      setError(err.message || 'Unable to upload image. Please try again.')
+    } finally {
+      setUploadingImage(false)
+    }
   }
 
   const resetForm = () => {
@@ -412,6 +452,19 @@ const Admin = () => {
                     placeholder="Image URL"
                   />
                 </div>
+                {form.image && (
+                  <div className="col-6">
+                    <label className="form-label">Preview</label>
+                    <div className="border rounded-4 overflow-hidden">
+                      <img src={form.image} alt="Preview" className="img-fluid" />
+                    </div>
+                  </div>
+                )}
+                {uploadingImage && (
+                  <div className="col-12">
+                    <div className="alert alert-info mb-0">Uploading image, please wait...</div>
+                  </div>
+                )}
                 <div className="col-12">
                   <label className="form-label">Description</label>
                   <textarea

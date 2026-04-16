@@ -5,6 +5,9 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import crypto from 'crypto'
+import multer from 'multer'
+import { v2 as cloudinary } from 'cloudinary'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import Product from './models/Product.js'
@@ -17,17 +20,45 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const staticPath = path.join(__dirname, 'dist')
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://bneel289_db_user:12345@clusterimage.hibhquq.mongodb.net/chips-web'
-const PORT = process.env.PORT || 5000
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwt'
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@chips.com'
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin@123'
+const MONGODB_URI = process.env.MONGODB_URI?.trim() || 'mongodb+srv://bneel289_db_user:12345@clusterimage.hibhquq.mongodb.net/chips-web'
+const PORT = process.env.PORT?.trim() || 5000
+const JWT_SECRET = process.env.JWT_SECRET?.trim() || 'supersecretjwt'
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.trim() || 'admin@chips.com'
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD?.trim() || 'Admin@123'
+const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME?.trim() || ''
+const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY?.trim() || ''
+const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET?.trim() || ''
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID?.trim() || ''
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET?.trim() || ''
+const EMAIL_USER = process.env.EMAIL_USER?.trim() || ''
+const EMAIL_PASS = process.env.EMAIL_PASS?.trim() || ''
+const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY?.trim() || ''
+const FIREBASE_AUTH_DOMAIN = process.env.FIREBASE_AUTH_DOMAIN?.trim() || ''
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID?.trim() || ''
+const FIREBASE_STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET?.trim() || ''
+const FIREBASE_MESSAGING_SENDER_ID = process.env.FIREBASE_MESSAGING_SENDER_ID?.trim() || ''
+const FIREBASE_APP_ID = process.env.FIREBASE_APP_ID?.trim() || ''
+const FIREBASE_MEASUREMENT_ID = process.env.FIREBASE_MEASUREMENT_ID?.trim() || ''
 
 const app = express()
 app.use(express.static(staticPath))
 app.use(cors({ origin: true }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+
+const storage = multer.memoryStorage()
+const upload = multer({ storage })
+
+cloudinary.config({
+  cloud_name: CLOUDINARY_CLOUD_NAME,
+  api_key: CLOUDINARY_API_KEY,
+  api_secret: CLOUDINARY_API_SECRET,
+  secure: true,
+})
+
+if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
+  console.warn('Cloudinary is not configured. Image upload route will fail until Cloudinary env vars are set.')
+}
 
 const generateToken = (user) => jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' })
 
@@ -137,6 +168,61 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (error) {
     console.error(error)
     res.status(500).json({ message: 'Unable to log in' })
+  }
+})
+
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { name, email } = req.body
+    if (!name || !email) {
+      return res.status(400).json({ message: 'Name and email are required for Google login' })
+    }
+
+    const normalizedEmail = email.toLowerCase()
+    let user = await User.findOne({ email: normalizedEmail })
+
+    if (!user) {
+      const randomPassword = crypto.randomBytes(16).toString('hex')
+      const hashedPassword = await bcrypt.hash(randomPassword, 10)
+      user = await User.create({
+        name,
+        email: normalizedEmail,
+        password: hashedPassword,
+        role: 'user',
+      })
+    }
+
+    const token = generateToken(user)
+    res.json({
+      token,
+      user: { _id: user._id, name: user.name, email: user.email, role: user.role },
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Unable to authenticate with Google' })
+  }
+})
+
+app.post('/api/upload', authenticateToken, authorizeRole('admin'), upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Image file is required' })
+    }
+
+    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
+      return res.status(500).json({ message: 'Cloudinary is not configured on the server' })
+    }
+
+    const dataUri = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`
+    const uploadResult = await cloudinary.uploader.upload(dataUri, {
+      folder: 'chips-products',
+      resource_type: 'image',
+    })
+
+    res.json({ url: uploadResult.secure_url })
+  } catch (error) {
+    console.error('Cloudinary upload failed:', error)
+    res.status(500).json({ message: 'Image upload failed' })
   }
 })
 
