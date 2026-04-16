@@ -11,7 +11,10 @@ const firebaseConfig = {
 }
 
 if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId || !firebaseConfig.appId) {
-  console.warn('Firebase config is missing required values. Google authentication will not work until VITE_FIREBASE_* values are provided.')
+  console.warn(
+    'Firebase config is missing required values. Google authentication will not work until VITE_FIREBASE_* env vars are provided.\n' +
+    `Current config: apiKey=${Boolean(firebaseConfig.apiKey)}, authDomain=${Boolean(firebaseConfig.authDomain)}, projectId=${Boolean(firebaseConfig.projectId)}, appId=${Boolean(firebaseConfig.appId)}`
+  )
 }
 
 const app = initializeApp(firebaseConfig)

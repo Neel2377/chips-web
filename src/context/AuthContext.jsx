@@ -158,8 +158,11 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       const code = error?.code || ''
       if (code === 'auth/unauthorized-domain') {
+        const currentOrigin = window.location.origin
+        const configuredAuthDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'your Firebase authDomain'
         throw new Error(
-          'Google sign-in is blocked because this site domain is not authorized in Firebase Authentication. Add your deployed domain to the Firebase authorized domains list.'
+          `Google sign-in is blocked because this site domain is not authorized in Firebase Authentication. Current origin: ${currentOrigin}. ` +
+          `Add this deployed domain to Firebase Authentication authorized domains and verify authDomain ${configuredAuthDomain}.`
         )
       }
       if (code === 'auth/popup-closed-by-user') {
