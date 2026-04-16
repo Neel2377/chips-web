@@ -138,8 +138,18 @@ export const AuthProvider = ({ children }) => {
   }
 
   const googleLogin = async () => {
-    if (!import.meta.env.VITE_FIREBASE_API_KEY || !import.meta.env.VITE_FIREBASE_AUTH_DOMAIN) {
-      throw new Error('Google authentication is not configured. Please set your Firebase VITE_FIREBASE_* env vars.')
+    const requiredFirebaseVars = [
+      'VITE_FIREBASE_API_KEY',
+      'VITE_FIREBASE_AUTH_DOMAIN',
+      'VITE_FIREBASE_PROJECT_ID',
+      'VITE_FIREBASE_APP_ID',
+    ]
+
+    const missingVars = requiredFirebaseVars.filter((key) => !import.meta.env[key])
+    if (missingVars.length > 0) {
+      throw new Error(
+        `Google authentication is not configured. Missing env vars: ${missingVars.join(', ')}.`
+      )
     }
 
     let result
