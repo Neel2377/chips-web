@@ -1,0 +1,425 @@
+:root {
+  --brand: #ffb703;
+  --brand-dark: #fb8500;
+  --surface: rgba(255, 255, 255, 0.08);
+  --surface-strong: rgba(255, 0, 0, 0.12);
+  --bg: #07111f;
+  --bg-alt: #0f1b2f;
+  --text: #eef2ff;
+  --muted: #a7b2c8 ;
+  --border: rgba(255, 255, 255, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: radial-gradient(circle at top left, rgba(255, 183, 3, 0.14), transparent 18%),
+    radial-gradient(circle at bottom right, rgba(251, 133, 0, 0.12), transparent 16%),
+    linear-gradient(180deg, #07111f 0%, #0f1b2f 100%);
+  color: var(--text);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+body, input, textarea, button, select {
+  font-family: inherit;
+}
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 0;
+}
+
+.auth-page .row {
+  width: 100%;
+}
+
+.auth-card {
+  background: rgba(10, 18, 34, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
+  width: 100%;
+  max-width: 560px;
+}
+
+.auth-card .spinner-border {
+  width: 3rem;
+  height: 3rem;
+}
+
+.auth-card .form-control {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--text);
+}
+
+.auth-card .form-control:focus {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 0.25rem rgba(255, 183, 3, 0.16);
+}
+
+.auth-card .form-label {
+  color: var(--muted);
+}
+
+.auth-card .btn-primary {
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  border-color: transparent;
+}
+
+.auth-card .btn-primary:hover,
+.auth-card .btn-primary:focus {
+  background: linear-gradient(135deg, #ffc86a, #fb7a00);
+}
+
+.auth-card .text-muted a {
+  color: var(--brand);
+  text-decoration: none;
+}
+
+.auth-card .text-muted a:hover {
+  text-decoration: underline;
+}
+
+.navbar-custom {
+  background: rgba(8, 14, 30, 0.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+}
+
+.navbar-brand {
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--brand) !important;
+}
+
+.brand-mark {
+  display: inline-flex;
+  width: 2.4rem;
+  height: 2.4rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.85rem;
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  color: #0b1120;
+  font-weight: 800;
+}
+
+.nav-link {
+  color: var(--muted) !important;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.nav-link:hover,
+.active-link {
+  color: var(--brand) !important;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 1rem;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  color: var(--brand);
+  letter-spacing: 0.18em;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.home-hero,
+.about-hero,
+.contact-hero,
+.admin-hero,
+.shop-header {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  overflow: hidden;
+  padding: 2.5rem 2rem;
+  margin-bottom: 2.5rem;
+}
+
+.fade-section {
+  opacity: 0;
+  transform: translateY(18px);
+  animation: fadeInUp 0.8s ease forwards;
+}
+
+.fade-section:nth-of-type(1) {
+  animation-delay: 0.08s;
+}
+
+.fade-section:nth-of-type(2) {
+  animation-delay: 0.16s;
+}
+
+.fade-section:nth-of-type(3) {
+  animation-delay: 0.24s;
+}
+
+.hero-image,
+.product-thumb,
+.product-thumb-small {
+  min-height: 280px;
+  background: #0a1422;
+  position: relative;
+  padding: 0.25rem;
+}
+
+.hero-image::after,
+.product-thumb::after,
+.product-thumb-small::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(255, 183, 3, 0.18), transparent 30%);
+  pointer-events: none;
+}
+
+.hero-image img,
+.product-thumb img,
+.product-thumb-small img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.product-card:hover img,
+.admin-card:hover img {
+  transform: scale(1.05);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stat-card,
+.feature-card,
+.value-card,
+.info-card,
+.contact-form-card,
+.contact-panel,
+.shop-summary,
+.admin-summary,
+.admin-form-card,
+.product-card,
+.admin-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease, background-color 0.28s ease;
+  padding: 1.75rem;
+}
+
+.stat-card,
+.feature-card,
+.value-card,
+.info-card,
+.contact-form-card,
+.contact-panel,
+.shop-summary,
+.admin-summary,
+.admin-form-card,
+.product-card,
+.admin-card {
+  border-radius: 1.5rem;
+}
+
+.feature-card,
+.value-card,
+.contact-form-card,
+.contact-panel,
+.shop-summary,
+.admin-summary,
+.admin-form-card,
+.product-card,
+.admin-card {
+  transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease, background-color 0.28s ease;
+}
+
+.feature-card:hover,
+.value-card:hover,
+.contact-form-card:hover,
+.contact-panel:hover,
+.shop-summary:hover,
+.admin-summary:hover,
+.admin-form-card:hover,
+.product-card:hover,
+.admin-card:hover {
+  transform: translateY(-8px);
+  border-color: rgba(255, 183, 3, 0.24);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.24);
+}
+
+.product-card,
+.admin-card {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.product-card:hover,
+.admin-card:hover {
+  transform: translateY(-6px) scale(1.01);
+}
+
+.shop-summary {
+  border-image: linear-gradient(135deg, rgba(255, 183, 3, 0.45), rgba(251, 133, 0, 0.3)) 1;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.shop-summary:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-accent,
+.btn-outline-light {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.btn-accent:hover,
+.btn-outline-light:hover {
+  transform: translateY(-2px);
+}
+
+.btn-accent:hover {
+  box-shadow: 0 16px 30px rgba(251, 133, 0, 0.2);
+}
+
+.section-title {
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+.section-title::after {
+  content: '';
+  display: block;
+  width: 4.5rem;
+  height: 0.35rem;
+  background: var(--brand);
+  margin-top: 0.85rem;
+  border-radius: 999px;
+}
+
+.btn-accent {
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  color: #0b1120;
+  border: none;
+  box-shadow: 0 12px 30px rgba(251, 133, 0, 0.18);
+}
+
+.btn-accent:hover,
+.btn-accent:focus {
+  background: var(--brand-dark);
+  color: #0b1120;
+}
+
+.btn-outline-light {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.btn-outline-light:hover,
+.btn-outline-light:focus {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.badge-pill {
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(255, 183, 3, 0.18);
+  color: var(--brand);
+  font-weight: 700;
+}
+
+.product-price {
+  font-size: 1.35rem;
+}
+
+.product-stock {
+  color: var(--muted);
+}
+
+.form-control-dark {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
+
+.form-control-dark:focus {
+  box-shadow: none;
+  border-color: rgba(255, 183, 3, 0.4);
+}
+
+textarea.form-control-dark {
+  min-height: 140px;
+}
+
+.footer-clean {
+  background: linear-gradient(180deg, rgba(8, 14, 29, 0.95), rgba(8, 14, 29, 1));
+}
+
+.footer-links li {
+  margin-bottom: 0.7rem;
+  color: var(--muted);
+}
+
+.footer-links li:hover {
+  color: #ffffff;
+}
+
+.footer-link {
+  color: var(--muted);
+  text-decoration: none;
+  transition: 0.2s;
+}
+
+.footer-link:hover {
+  color: #ffffff;
+}
+
+/* Active route like navbar */
+.footer-link.active {
+  color: var(--brand);
+}
+
+@media (max-width: 991px) {
+  .hero-image,
+  .product-thumb {
+    min-height: 220px;
+  }
+}
+
+@media (max-width: 767px) {
+  .card-img-top,
+  .product-thumb-small img,
+  .product-thumb img {
+    object-fit: cover;
+  }
+
+  .navbar-brand {
+    font-size: 0.95rem;
+  }
+}
