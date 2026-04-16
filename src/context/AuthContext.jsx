@@ -156,6 +156,18 @@ export const AuthProvider = ({ children }) => {
     try {
       result = await signInWithPopup(auth, googleProvider)
     } catch (error) {
+      const code = error?.code || ''
+      if (code === 'auth/unauthorized-domain') {
+        throw new Error(
+          'Google sign-in is blocked because this site domain is not authorized in Firebase Authentication. Add your deployed domain to the Firebase authorized domains list.'
+        )
+      }
+      if (code === 'auth/popup-closed-by-user') {
+        throw new Error('Google sign-in was cancelled. Please try again.')
+      }
+      if (code === 'auth/popup-blocked') {
+        throw new Error('The browser blocked the Google sign-in popup. Please allow popups and try again.')
+      }
       throw new Error(error.message || 'Google sign-in failed. Please try again.')
     }
 
