@@ -5,11 +5,17 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import Product from './models/Product.js'
 import User from './models/User.js'
 import Order from './models/Order.js'
 
 dotenv.config()
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const staticPath = path.join(__dirname, 'dist')
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://bneel289_db_user:12345@clusterimage.hibhquq.mongodb.net/chips-web'
 const PORT = process.env.PORT || 5000
@@ -18,6 +24,7 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@chips.com'
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin@123'
 
 const app = express()
+app.use(express.static(staticPath))
 app.use(cors({ origin: true }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
@@ -373,6 +380,13 @@ app.get('/api/dashboard', authenticateToken, authorizeRole('admin'), async (req,
     console.error(error)
     res.status(500).json({ message: 'Could not load dashboard stats' })
   }
+})
+
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ message: 'API route not found' })
+  }
+  res.sendFile(path.join(staticPath, 'index.html'))
 })
 
 mongoose
