@@ -138,11 +138,17 @@ export const AuthProvider = ({ children }) => {
   }
 
   const googleLogin = async () => {
-    if (!import.meta.env.VITE_FIREBASE_API_KEY) {
-      throw new Error('Google authentication is not configured.')
+    if (!import.meta.env.VITE_FIREBASE_API_KEY || !import.meta.env.VITE_FIREBASE_AUTH_DOMAIN) {
+      throw new Error('Google authentication is not configured. Please set your Firebase VITE_FIREBASE_* env vars.')
     }
 
-    const result = await signInWithPopup(auth, googleProvider)
+    let result
+    try {
+      result = await signInWithPopup(auth, googleProvider)
+    } catch (error) {
+      throw new Error(error.message || 'Google sign-in failed. Please try again.')
+    }
+
     const profile = result.user
     const name = profile.displayName || profile.email?.split('@')[0] || 'Google User'
     const email = profile.email

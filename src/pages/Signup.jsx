@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth.jsx'
 
@@ -9,13 +9,6 @@ const Signup = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const [redirectTarget, setRedirectTarget] = useState('')
-
-  useEffect(() => {
-    if (redirectTarget) {
-      navigate(redirectTarget, { replace: true })
-    }
-  }, [redirectTarget, navigate])
 
   if (authLoading) {
     return (
@@ -50,7 +43,7 @@ const Signup = () => {
 
     try {
       await signup(form)
-      setRedirectTarget('/login')
+      navigate('/login', { replace: true })
     } catch (submitError) {
       setError(submitError.message || 'Unable to create account. Please try again.')
     } finally {
@@ -64,7 +57,7 @@ const Signup = () => {
 
     try {
       await googleLogin()
-      setRedirectTarget('/profile')
+      navigate('/profile', { replace: true })
     } catch (googleError) {
       setError(googleError.message || 'Google sign-in failed. Please try again.')
     } finally {

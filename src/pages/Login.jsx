@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth.jsx'
 
@@ -9,13 +9,6 @@ const Login = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const [redirectTarget, setRedirectTarget] = useState('')
-
-  useEffect(() => {
-    if (redirectTarget && isAuthenticated) {
-      navigate(redirectTarget, { replace: true })
-    }
-  }, [redirectTarget, isAuthenticated, navigate])
 
   if (authLoading) {
     return (
@@ -50,7 +43,7 @@ const Login = () => {
 
     try {
       const data = await login(form)
-      setRedirectTarget(data.user.role === 'admin' ? '/admin' : '/profile')
+      navigate(data.user.role === 'admin' ? '/admin' : '/profile', { replace: true })
     } catch (submitError) {
       setError(submitError.message || 'Unable to log in. Please try again.')
     } finally {
@@ -64,7 +57,7 @@ const Login = () => {
 
     try {
       const data = await googleLogin()
-      setRedirectTarget(data.user.role === 'admin' ? '/admin' : '/profile')
+      navigate(data.user.role === 'admin' ? '/admin' : '/profile', { replace: true })
     } catch (googleError) {
       setError(googleError.message || 'Google sign-in failed. Please try again.')
     } finally {
