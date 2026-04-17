@@ -20,9 +20,11 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('authToken'))
   const [loading, setLoading] = useState(true)
 
-  const baseUrl = import.meta.env.VITE_API_URL
+  // ✅ FIXED base URL (works for local + production)
+  const baseUrl =
+    import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
-  // ✅ Verify token
+  // ✅ VERIFY TOKEN (clean + correct)
   useEffect(() => {
     const verifyToken = async () => {
       if (!token) {
@@ -32,22 +34,34 @@ export const AuthProvider = ({ children }) => {
 
       try {
         const res = await fetch(`${baseUrl}/api/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
         })
 
-        if (!res.ok) throw new Error()
+        if (!res.ok) {
+          throw new Error(`Request failed: ${res.status}`)
+        }
 
         const data = await res.json()
         setUser(data.user)
-      } catch {
-        logout()
+      } catch (err) {
+        console.error('Token verification failed:', err)
+
+        // clear invalid session
+        localStorage.removeItem('authToken')
+        localStorage.removeItem('authUser')
+        setUser(null)
+        setToken(null)
       } finally {
         setLoading(false)
       }
     }
 
     verifyToken()
-  }, [])
+  }, [token])
 
   // ✅ Sync user
   useEffect(() => {
@@ -79,6 +93,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('authUser')
   }
 
+  // ✅ Generic API request
   const apiRequest = async (path, options = {}) => {
     const headers = {
       'Content-Type': 'application/json',
@@ -104,12 +119,14 @@ export const AuthProvider = ({ children }) => {
     return res.json()
   }
 
+  // ✅ Signup
   const signup = (payload) =>
     apiRequest('/api/auth/signup', {
       method: 'POST',
       body: JSON.stringify(payload),
     })
 
+  // ✅ Login
   const login = async (payload) => {
     const data = await apiRequest('/api/auth/login', {
       method: 'POST',
@@ -120,7 +137,7 @@ export const AuthProvider = ({ children }) => {
     return data
   }
 
-  // ✅ GOOGLE LOGIN (fully stable)
+  // ✅ GOOGLE LOGIN
   const googleLogin = async () => {
     if (!firebaseConfigured || !auth || !googleProvider) {
       throw new Error('Firebase not configured properly')
