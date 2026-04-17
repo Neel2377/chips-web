@@ -2,23 +2,40 @@ import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 }
 
-if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId || !firebaseConfig.appId) {
-  console.warn(
-    'Firebase config is missing required values. Google authentication will not work until VITE_FIREBASE_* env vars are provided.\n' +
-    `Current config: apiKey=${Boolean(firebaseConfig.apiKey)}, authDomain=${Boolean(firebaseConfig.authDomain)}, projectId=${Boolean(firebaseConfig.projectId)}, appId=${Boolean(firebaseConfig.appId)}`
-  )
+// ✅ Validate config
+const firebaseConfigured =
+  !!firebaseConfig.apiKey &&
+  !!firebaseConfig.authDomain &&
+  !!firebaseConfig.projectId &&
+  !!firebaseConfig.appId
+
+if (!firebaseConfigured) {
+  console.error('❌ Firebase config missing. Check your .env file.')
 }
 
-const app = initializeApp(firebaseConfig)
-const auth = getAuth(app)
-const googleProvider = new GoogleAuthProvider()
+let app = null
+let auth = null
+let googleProvider = null
 
-export { auth, googleProvider, signInWithPopup }
+if (firebaseConfigured) {
+  app = initializeApp(firebaseConfig)
+  auth = getAuth(app)
+
+  googleProvider = new GoogleAuthProvider()
+  googleProvider.setCustomParameters({
+    prompt: 'select_account',
+  })
+
+  auth.useDeviceLanguage()
+}
+
+export { auth, googleProvider, signInWithPopup, firebaseConfigured }

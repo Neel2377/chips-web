@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth.jsx'
 
 const Signup = () => {
-  const { isAuthenticated, loading: authLoading, signup, googleLogin } = useAuth()
+  const { isAuthenticated, loading: authLoading, signup, googleLogin, googleAvailable } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [error, setError] = useState('')
@@ -78,11 +78,20 @@ const Signup = () => {
               type="button"
               className="btn btn-outline-light btn-lg w-100 mb-3"
               onClick={handleGoogleSignIn}
-              disabled={googleLoading}
+              disabled={googleLoading || !googleAvailable}
             >
-              {googleLoading ? 'Signing in with Google...' : 'Continue with Google'}
+              {googleLoading
+                ? 'Signing in with Google...'
+                : googleAvailable
+                ? 'Continue with Google'
+                : 'Google signup unavailable'}
             </button>
-            <div className="text-center text-muted mb-4">or create an account with email</div>
+            {!googleAvailable && (
+              <div className="alert alert-warning py-2 mb-3">
+                Google signup is not configured. Please use email registration.
+              </div>
+            )}
+            <div className="text-center text-white mb-4">or create an account with email</div>
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
                 <label className="form-label">Name</label>

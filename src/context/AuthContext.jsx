@@ -1,50 +1,46 @@
 import { useEffect, useState } from 'react'
-import { auth, googleProvider, signInWithPopup } from '../firebaseConfig.js'
+import {
+  auth,
+  googleProvider,
+  signInWithPopup,
+  firebaseConfigured,
+} from '../firebaseConfig.js'
 import { AuthContext } from './AuthContextObject.js'
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem('authUser')
-    return stored ? JSON.parse(stored) : null
+    try {
+      const stored = localStorage.getItem('authUser')
+      return stored ? JSON.parse(stored) : null
+    } catch {
+      return null
+    }
   })
-  const [token, setToken] = useState(() => localStorage.getItem('authToken'))
+
+  const [token, setToken] = useState(localStorage.getItem('authToken'))
   const [loading, setLoading] = useState(true)
 
+  const baseUrl = import.meta.env.VITE_API_URL
+
+  // ✅ Verify token
   useEffect(() => {
-    const storedToken = localStorage.getItem('authToken')
     const verifyToken = async () => {
-      if (!storedToken) {
-        localStorage.removeItem('authUser')
-        setUser(null)
-        setToken(null)
+      if (!token) {
         setLoading(false)
         return
       }
 
-      const baseUrl = import.meta.env.VITE_API_URL || ''
       try {
-        const response = await fetch(`${baseUrl}/api/auth/me`, {
-          headers: {
-            Authorization: `Bearer ${storedToken}`,
-          },
+        const res = await fetch(`${baseUrl}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
         })
 
-        if (!response.ok) {
-          localStorage.removeItem('authToken')
-          localStorage.removeItem('authUser')
-          setUser(null)
-          setToken(null)
-          setLoading(false)
-          return
-        }
+        if (!res.ok) throw new Error()
 
-        const data = await response.json()
+        const data = await res.json()
         setUser(data.user)
       } catch {
-        localStorage.removeItem('authToken')
-        localStorage.removeItem('authUser')
-        setUser(null)
-        setToken(null)
+        logout()
       } finally {
         setLoading(false)
       }
@@ -53,6 +49,7 @@ export const AuthProvider = ({ children }) => {
     verifyToken()
   }, [])
 
+  // ✅ Sync user
   useEffect(() => {
     if (user) {
       localStorage.setItem('authUser', JSON.stringify(user))
@@ -61,6 +58,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user])
 
+  // ✅ Sync token
   useEffect(() => {
     if (token) {
       localStorage.setItem('authToken', token)
@@ -70,27 +68,15 @@ export const AuthProvider = ({ children }) => {
   }, [token])
 
   const saveToken = (newToken, userData) => {
-    if (newToken) {
-      localStorage.setItem('authToken', newToken)
-    } else {
-      localStorage.removeItem('authToken')
-    }
-
-    if (userData) {
-      localStorage.setItem('authUser', JSON.stringify(userData))
-    } else {
-      localStorage.removeItem('authUser')
-    }
-
     setToken(newToken)
     setUser(userData)
   }
 
   const logout = () => {
-    localStorage.removeItem('authToken')
-    localStorage.removeItem('authUser')
     setToken(null)
     setUser(null)
+    localStorage.removeItem('authToken')
+    localStorage.removeItem('authUser')
   }
 
   const apiRequest = async (path, options = {}) => {
@@ -99,96 +85,92 @@ export const AuthProvider = ({ children }) => {
       ...(options.headers || {}),
     }
 
-    const authToken = token || localStorage.getItem('authToken')
-    if (authToken) {
-      headers.Authorization = `Bearer ${authToken}`
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
     }
 
-    const baseUrl = import.meta.env.VITE_API_URL || ''
-    const url = `${baseUrl}${path}`
-
-    const response = await fetch(url, {
+    const res = await fetch(`${baseUrl}${path}`, {
       ...options,
       headers,
     })
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Request failed' }))
-      throw new Error(errorData.message || 'Request failed')
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({
+        message: 'Request failed',
+      }))
+      throw new Error(err.message)
     }
 
-    return response.json()
+    return res.json()
   }
 
-  const signup = async (payload) => {
-    const data = await apiRequest('/api/auth/signup', {
+  const signup = (payload) =>
+    apiRequest('/api/auth/signup', {
       method: 'POST',
       body: JSON.stringify(payload),
     })
-    return data
-  }
 
   const login = async (payload) => {
     const data = await apiRequest('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify(payload),
     })
+
     saveToken(data.token, data.user)
     return data
   }
 
+  // ✅ GOOGLE LOGIN (fully stable)
   const googleLogin = async () => {
-    const requiredFirebaseVars = [
-      'VITE_FIREBASE_API_KEY',
-      'VITE_FIREBASE_AUTH_DOMAIN',
-      'VITE_FIREBASE_PROJECT_ID',
-      'VITE_FIREBASE_APP_ID',
-    ]
-
-    const missingVars = requiredFirebaseVars.filter((key) => !import.meta.env[key])
-    if (missingVars.length > 0) {
-      throw new Error(
-        `Google authentication is not configured. Missing env vars: ${missingVars.join(', ')}.`
-      )
+    if (!firebaseConfigured || !auth || !googleProvider) {
+      throw new Error('Firebase not configured properly')
     }
 
-    let result
     try {
-      result = await signInWithPopup(auth, googleProvider)
+      const result = await signInWithPopup(auth, googleProvider)
+
+      const profile = result.user
+      const email = profile.email
+
+      if (!email) throw new Error('Google email not found')
+
+      const name =
+        profile.displayName || email.split('@')[0] || 'Google User'
+
+      const data = await apiRequest('/api/auth/google', {
+        method: 'POST',
+        body: JSON.stringify({ name, email }),
+      })
+
+      saveToken(data.token, data.user)
+      return data
     } catch (error) {
-      const code = error?.code || ''
-      if (code === 'auth/unauthorized-domain') {
-        const currentOrigin = window.location.origin
-        const configuredAuthDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'your Firebase authDomain'
-        throw new Error(
-          `Google sign-in is blocked because this site domain is not authorized in Firebase Authentication. Current origin: ${currentOrigin}. ` +
-          `Add this deployed domain to Firebase Authentication authorized domains and verify authDomain ${configuredAuthDomain}.`
-        )
-      }
+      console.error('Google Login Error:', error)
+
+      const code = error?.code
+
       if (code === 'auth/popup-closed-by-user') {
-        throw new Error('Google sign-in was cancelled. Please try again.')
+        throw new Error('Popup closed')
       }
+
       if (code === 'auth/popup-blocked') {
-        throw new Error('The browser blocked the Google sign-in popup. Please allow popups and try again.')
+        throw new Error('Enable popups')
       }
-      throw new Error(error.message || 'Google sign-in failed. Please try again.')
+
+      if (code === 'auth/unauthorized-domain') {
+        throw new Error('Unauthorized domain in Firebase')
+      }
+
+      if (code === 'auth/invalid-api-key') {
+        throw new Error('Invalid Firebase API key')
+      }
+
+      if (code === 'auth/network-request-failed') {
+        throw new Error('Network issue')
+      }
+
+      throw new Error(error.message || 'Google login failed')
     }
-
-    const profile = result.user
-    const name = profile.displayName || profile.email?.split('@')[0] || 'Google User'
-    const email = profile.email
-
-    if (!email) {
-      throw new Error('Google account email is required.')
-    }
-
-    const data = await apiRequest('/api/auth/google', {
-      method: 'POST',
-      body: JSON.stringify({ name, email }),
-    })
-
-    saveToken(data.token, data.user)
-    return data
   }
 
   return (
@@ -199,11 +181,12 @@ export const AuthProvider = ({ children }) => {
         loading,
         isAuthenticated: !!user && !!token,
         isAdmin: user?.role === 'admin',
-        apiRequest,
         login,
         signup,
         googleLogin,
+        googleAvailable: firebaseConfigured,
         logout,
+        apiRequest,
       }}
     >
       {children}
