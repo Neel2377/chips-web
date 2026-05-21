@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth.jsx'
 
-const API_URL = '/api'
+const API_URL = "http://localhost:5000/api"
 const statusClasses = {
   pending: 'badge bg-warning text-dark',
   success: 'badge bg-success',

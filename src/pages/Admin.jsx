@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import { useEffect, useState } from 'react'
 
-const API_URL = '/api'
+const API_URL = "http://localhost:5000/api"
 const ORDER_STATUSES = ['pending', 'success', 'complete', 'cancel']
 const statusLabels = {
   pending: 'Pending',
@@ -286,9 +286,11 @@ const Admin = () => {
 
   const filteredOrders = orders.filter((order) => orderFilter === 'all' || order.status === orderFilter)
   const orderStatusCounts = ORDER_STATUSES.reduce((acc, statusKey) => {
-    acc[statusKey] = stats.statusCounts?.[statusKey] ?? orders.filter((order) => order.status === statusKey).length
-    return acc
-  }, {})
+  acc[statusKey] =
+    stats?.statusCounts?.[statusKey] ||
+    orders.filter((order) => order.status === statusKey).length
+  return acc
+}, {})
 
   return (
     <div>

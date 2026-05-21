@@ -1,487 +1,301 @@
 /* eslint-disable no-undef */
-import express from 'express'
-import mongoose from 'mongoose'
-import cors from 'cors'
-import dotenv from 'dotenv'
-import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
-import crypto from 'crypto'
-import multer from 'multer'
-import { v2 as cloudinary } from 'cloudinary'
-import path from 'path'
-import { fileURLToPath } from 'url'
-import Product from './models/Product.js'
-import User from './models/User.js'
-import Order from './models/Order.js'
+/* eslint-disable no-unused-vars */
+import "./config/env.js"
 
-dotenv.config()
+import express from "express"
+import mongoose from "mongoose"
+import cors from "cors"
+import bcrypt from "bcryptjs"
+import jwt from "jsonwebtoken"
+import multer from "multer"
+import { v2 as cloudinary } from "cloudinary"
+import path from "path"
+import { fileURLToPath } from "url"
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-const staticPath = path.join(__dirname, 'dist')
+import Product from "./models/Product.js"
+import User from "./models/User.js"
+import Order from "./models/Order.js"
 
-const MONGODB_URI = process.env.MONGODB_URI?.trim() || 'mongodb+srv://bneel289_db_user:12345@clusterimage.hibhquq.mongodb.net/chips-web'
-const PORT = process.env.PORT?.trim() || 5000
-const JWT_SECRET = process.env.JWT_SECRET?.trim() || 'supersecretjwt'
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.trim() || 'admin@chips.com'
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD?.trim() || 'Admin@123'
-const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME?.trim() || ''
-const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY?.trim() || ''
-const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET?.trim() || ''
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID?.trim() || ''
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET?.trim() || ''
-const EMAIL_USER = process.env.EMAIL_USER?.trim() || ''
-const EMAIL_PASS = process.env.EMAIL_PASS?.trim() || ''
-const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY?.trim() || ''
-const FIREBASE_AUTH_DOMAIN = process.env.FIREBASE_AUTH_DOMAIN?.trim() || ''
-const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID?.trim() || ''
-const FIREBASE_STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET?.trim() || ''
-const FIREBASE_MESSAGING_SENDER_ID = process.env.FIREBASE_MESSAGING_SENDER_ID?.trim() || ''
-const FIREBASE_APP_ID = process.env.FIREBASE_APP_ID?.trim() || ''
-const FIREBASE_MEASUREMENT_ID = process.env.FIREBASE_MEASUREMENT_ID?.trim() || ''
+import paymentRoutes from "./src/routes/paymentRoutes.js"
 
 const app = express()
-app.use(express.static(staticPath))
+
+// PATH
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const staticPath = path.join(__dirname, "dist")
+
+// ENV
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/chips-web"
+const PORT = process.env.PORT || 5000
+const JWT_SECRET = process.env.JWT_SECRET || "secret"
+
+// MIDDLEWARE
 app.use(cors({ origin: true }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-const storage = multer.memoryStorage()
-const upload = multer({ storage })
-
+// ---------------- CLOUDINARY ----------------
 cloudinary.config({
-  cloud_name: CLOUDINARY_CLOUD_NAME,
-  api_key: CLOUDINARY_API_KEY,
-  api_secret: CLOUDINARY_API_SECRET,
-  secure: true,
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || "",
+  api_key: process.env.CLOUDINARY_API_KEY || "",
+  api_secret: process.env.CLOUDINARY_API_SECRET || "",
 })
 
-if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
-  console.warn('Cloudinary is not configured. Image upload route will fail until Cloudinary env vars are set.')
-}
+// ---------------- MULTER ----------------
+const upload = multer({ storage: multer.memoryStorage() })
 
-const generateToken = (user) => jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' })
+// ---------------- TOKEN ----------------
+const generateToken = (user) =>
+  jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: "7d" })
 
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers.authorization
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Authentication token missing' })
-  }
-
-  const token = authHeader.split(' ')[1]
-  jwt.verify(token, JWT_SECRET, (error, payload) => {
-    if (error) {
-      return res.status(401).json({ message: 'Invalid or expired token' })
-    }
-    req.user = payload
-    next()
-  })
-}
-
-const authorizeRole = (role) => (req, res, next) => {
-  if (!req.user || req.user.role !== role) {
-    return res.status(403).json({ message: 'Access denied' })
-  }
-  next()
-}
-
-const createAdminUser = async () => {
-  try {
-    const existingAdmin = await User.findOne({ role: 'admin' })
-    if (existingAdmin) {
-      if (!existingAdmin.password.startsWith('$2')) {
-        existingAdmin.password = await bcrypt.hash(existingAdmin.password, 10)
-        await existingAdmin.save()
-        console.log('Existing admin password was unhashed and has been secured.')
-      }
-      return
-    }
-
-    const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 10)
-    await User.create({
-      name: 'Admin',
-      email: ADMIN_EMAIL,
-      password: hashedPassword,
-      role: 'admin',
-    })
-    console.log('Default admin user created:')
-    console.log(`  email: ${ADMIN_EMAIL}`)
-    console.log(`  password: ${ADMIN_PASSWORD}`)
-  } catch (error) {
-    console.error('Error creating default admin user:', error.message)
-  }
-}
-
-app.post('/api/auth/signup', async (req, res) => {
+// ================= AUTH =================
+app.post("/api/auth/signup", async (req, res) => {
   try {
     const { name, email, password } = req.body
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Name, email and password are required' })
-    }
 
-    const existingUser = await User.findOne({ email: email.toLowerCase() })
-    if (existingUser) {
-      return res.status(400).json({ message: 'Email is already in use' })
-    }
+    const userExists = await User.findOne({ email })
+    if (userExists) return res.status(400).json({ message: "User exists" })
 
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const hashed = await bcrypt.hash(password, 10)
+
     const user = await User.create({
       name,
-      email: email.toLowerCase(),
-      password: hashedPassword,
-      role: 'user',
+      email,
+      password: hashed,
     })
 
-    const token = generateToken(user)
-    res.json({
-      token,
-      user: { _id: user._id, name: user.name, email: user.email, role: user.role },
-    })
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Unable to create user' })
+    res.json({ token: generateToken(user), user })
+  } catch (err) {
+    res.status(500).json({ message: "Signup error" })
   }
 })
 
-app.post('/api/auth/login', async (req, res) => {
+app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' })
-    }
 
-    const user = await User.findOne({ email: email.toLowerCase() })
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid email or password' })
-    }
+    const user = await User.findOne({ email })
+    if (!user) return res.status(400).json({ message: "Invalid" })
 
-    const validPassword = await bcrypt.compare(password, user.password)
-    if (!validPassword) {
-      return res.status(400).json({ message: 'Invalid email or password' })
-    }
+    const valid = await bcrypt.compare(password, user.password)
+    if (!valid) return res.status(400).json({ message: "Invalid" })
 
-    const token = generateToken(user)
-    res.json({
-      token,
-      user: { _id: user._id, name: user.name, email: user.email, role: user.role },
-    })
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Unable to log in' })
+    res.json({ token: generateToken(user), user })
+  } catch {
+    res.status(500).json({ message: "Login error" })
   }
 })
 
-app.post('/api/auth/google', async (req, res) => {
+// ================= PRODUCTS =================
+app.get("/api/products", async (req, res) => {
+  const data = await Product.find()
+  res.json(data)
+})
+
+app.post("/api/products", async (req, res) => {
+  const data = await Product.create(req.body)
+  res.json(data)
+})
+
+app.delete("/api/products/:id", async (req, res) => {
+  const deleted = await Product.findByIdAndDelete(req.params.id)
+  if (!deleted) return res.status(404).json({ message: "Product not found" })
+  res.json({ message: "Deleted" })
+})
+
+app.put("/api/products/:id", async (req, res) => {
+  const updated = await Product.findByIdAndUpdate(
+    req.params.id,
+    req.body,
+    { new: true }
+  )
+
+  if (!updated) {
+    return res.status(404).json({ message: "Product not found" })
+  }
+
+  res.json(updated)
+})
+// ================= USERS =================
+app.get("/api/users", async (req, res) => {
+  const users = await User.find().select("-password")
+  res.json(users)
+})
+
+app.delete("/api/users/:id", async (req, res) => {
+  const deleted = await User.findByIdAndDelete(req.params.id)
+  if (!deleted) return res.status(404).json({ message: "User not found" })
+  res.json({ message: "User deleted" })
+})
+
+// ================= ORDERS =================
+app.get("/api/orders", async (req, res) => {
+  const orders = await Order.find().populate("user", "name email")
+  res.json(orders)
+})
+
+// GET MY ORDERS
+app.get("/api/orders/me", async (req, res) => {
   try {
-    const { name, email } = req.body
-    if (!name || !email) {
-      return res.status(400).json({ message: 'Name and email are required for Google login' })
+    const token = req.headers.authorization?.split(" ")[1]
+
+    if (!token) {
+      return res.status(401).json({ message: "No token" })
     }
 
-    const normalizedEmail = email.toLowerCase()
-    let user = await User.findOne({ email: normalizedEmail })
+    const decoded = jwt.verify(token, JWT_SECRET)
 
-    if (!user) {
-      const randomPassword = crypto.randomBytes(16).toString('hex')
-      const hashedPassword = await bcrypt.hash(randomPassword, 10)
-      user = await User.create({
-        name,
-        email: normalizedEmail,
-        password: hashedPassword,
-        role: 'user',
-      })
-    }
+    const orders = await Order.find({ user: decoded.id })
+      .sort({ createdAt: -1 })
 
-    const token = generateToken(user)
-    res.json({
-      token,
-      user: { _id: user._id, name: user.name, email: user.email, role: user.role },
-    })
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Unable to authenticate with Google' })
+    res.json(orders)
+  } catch (err) {
+    res.status(401).json({ message: "Invalid token" })
   }
 })
 
-app.post('/api/upload', authenticateToken, authorizeRole('admin'), upload.single('image'), async (req, res) => {
+app.post("/api/orders", async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'Image file is required' })
+    const { items, userId } = req.body
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" })
     }
 
-    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
-      return res.status(500).json({ message: 'Cloudinary is not configured on the server' })
-    }
-
-    const dataUri = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`
-    const uploadResult = await cloudinary.uploader.upload(dataUri, {
-      folder: 'chips-products',
-      resource_type: 'image',
-    })
-
-    res.json({ url: uploadResult.secure_url })
-  } catch (error) {
-    console.error('Cloudinary upload failed:', error)
-    res.status(500).json({ message: 'Image upload failed' })
-  }
-})
-
-app.get('/api/auth/me', authenticateToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select('-password')
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' })
-    }
-    res.json({ user })
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Unable to load user profile' })
-  }
-})
-
-app.get('/api/products', async (req, res) => {
-  try {
-    const products = await Product.find().sort({ name: 1 })
-    res.json(products)
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Failed to load products' })
-  }
-})
-
-app.get('/api/products/:id', async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id)
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' })
-    }
-    res.json(product)
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Failed to load product' })
-  }
-})
-
-app.post('/api/products', authenticateToken, authorizeRole('admin'), async (req, res) => {
-  try {
-    const product = new Product(req.body)
-    const savedProduct = await product.save()
-    res.status(201).json(savedProduct)
-  } catch (error) {
-    console.error(error)
-    res.status(400).json({ message: 'Could not create product' })
-  }
-})
-
-app.put('/api/products/:id', authenticateToken, authorizeRole('admin'), async (req, res) => {
-  try {
-    const product = await Product.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    })
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' })
-    }
-    res.json(product)
-  } catch (error) {
-    console.error(error)
-    res.status(400).json({ message: 'Could not update product' })
-  }
-})
-
-app.delete('/api/products/:id', authenticateToken, authorizeRole('admin'), async (req, res) => {
-  try {
-    const product = await Product.findByIdAndDelete(req.params.id)
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' })
-    }
-    res.json({ message: 'Product deleted successfully' })
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Could not delete product' })
-  }
-})
-
-app.get('/api/users', authenticateToken, authorizeRole('admin'), async (req, res) => {
-  try {
-    const users = await User.find().select('-password').sort({ createdAt: -1 })
-    res.json(users)
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Could not load users' })
-  }
-})
-
-app.delete('/api/users/:id', authenticateToken, authorizeRole('admin'), async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id)
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' })
-    }
-    if (user.role === 'admin') {
-      return res.status(400).json({ message: 'Cannot delete admin account' })
-    }
-    await user.deleteOne()
-    res.json({ message: 'User deleted successfully' })
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Could not delete user' })
-  }
-})
-
-app.post('/api/orders', authenticateToken, async (req, res) => {
-  try {
-    const { items } = req.body
     if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: 'Order items are required' })
+      return res.status(400).json({ message: "Items required" })
     }
 
-    const productIds = items.map((item) => item._id)
-    const products = await Product.find({ _id: { $in: productIds } })
-    const orderItems = []
-    let total = 0
+    const orderItems = items.map((item) => ({
+      product: item.product || item._id,
+      name: item.name,
+      price: Number(item.price) || 0,
+      quantity: Number(item.quantity) || 1,
+    }))
 
-    for (const item of items) {
-      const product = products.find((product) => product._id.toString() === item._id)
-      if (!product) {
-        return res.status(400).json({ message: `Product not found: ${item._id}` })
-      }
-      if (product.stock < item.quantity) {
-        return res.status(400).json({ message: `Not enough stock for ${product.name}` })
-      }
-      orderItems.push({
-        product: product._id,
-        name: product.name,
-        price: product.price,
-        quantity: item.quantity,
-      })
-      total += product.price * item.quantity
-    }
-
-    const order = await Order.create({
-      user: req.user.id,
-      items: orderItems,
-      total,
-      status: 'pending',
-    })
-
-    await Promise.all(
-      orderItems.map((item) =>
-        Product.findByIdAndUpdate(item.product, {
-          $inc: { stock: -item.quantity },
-        }),
-      ),
+    const total = orderItems.reduce(
+      (sum, i) => sum + i.price * i.quantity,
+      0
     )
 
-    res.status(201).json(order)
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Unable to create order' })
-  }
-})
+    const order = await Order.create({
+      user: userId,
+      items: orderItems,
+      total,
+      status: "pending",
+    })
 
-app.get('/api/orders/me', authenticateToken, async (req, res) => {
-  try {
-    const orders = await Order.find({ user: req.user.id }).sort({ createdAt: -1 })
-    res.json(orders)
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Could not load your orders' })
-  }
-})
-
-app.get('/api/orders', authenticateToken, authorizeRole('admin'), async (req, res) => {
-  try {
-    const orders = await Order.find().populate('user', 'name email').sort({ createdAt: -1 })
-    res.json(orders)
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Could not load orders' })
-  }
-})
-
-app.get('/api/orders/:id', authenticateToken, authorizeRole('admin'), async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id).populate('user', 'name email')
-    if (!order) {
-      return res.status(404).json({ message: 'Order not found' })
-    }
     res.json(order)
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Could not load order' })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ message: "Order error" })
   }
 })
 
-app.put('/api/orders/:id', authenticateToken, authorizeRole('admin'), async (req, res) => {
-  try {
-    const { status } = req.body
-    const statuses = ['pending', 'success', 'complete', 'cancel']
-    if (!statuses.includes(status)) {
-      return res.status(400).json({ message: 'Invalid order status' })
-    }
+app.put("/api/orders/:id", async (req, res) => {
+  const { status } = req.body
 
-    const order = await Order.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true },
-    ).populate('user', 'name email')
+  const order = await Order.findByIdAndUpdate(
+    req.params.id,
+    { status },
+    { new: true }
+  ).populate("user", "name email")
 
-    if (!order) {
-      return res.status(404).json({ message: 'Order not found' })
-    }
-    res.json(order)
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Could not update order status' })
-  }
+  if (!order) return res.status(404).json({ message: "Order not found" })
+
+  res.json(order)
 })
 
-app.get('/api/dashboard', authenticateToken, authorizeRole('admin'), async (req, res) => {
+// ================= DASHBOARD =================
+app.get("/api/dashboard", async (req, res) => {
   try {
     const totalUsers = await User.countDocuments()
+    const totalProducts = await Product.countDocuments()
     const totalOrders = await Order.countDocuments()
-    const orderStatusCounts = await Order.aggregate([
-      { $group: { _id: '$status', count: { $sum: 1 } } },
+
+    const orders = await Order.find()
+
+    const totalRevenue = orders.reduce(
+      (sum, o) => sum + (o.total || 0),
+      0
+    )
+
+    const stockAgg = await Product.aggregate([
+      { $group: { _id: null, totalStock: { $sum: "$stock" } } }
     ])
-    const totalRevenueResult = await Order.aggregate([
-      { $match: { status: { $in: ['success', 'complete'] } } },
-      { $group: { _id: null, totalRevenue: { $sum: '$total' } } },
-    ])
-    const totalStockResult = await Product.aggregate([
-      { $group: { _id: null, stock: { $sum: '$stock' } } },
-    ])
+
+    const totalStock = stockAgg[0]?.totalStock || 0
+
+    // ✅ ADD THIS (VERY IMPORTANT)
+    const statusCounts = {
+      pending: await Order.countDocuments({ status: "pending" }),
+      success: await Order.countDocuments({ status: "success" }),
+      complete: await Order.countDocuments({ status: "complete" }),
+      cancel: await Order.countDocuments({ status: "cancel" }),
+    }
 
     res.json({
       totalUsers,
+      totalProducts,
       totalOrders,
-      totalRevenue: totalRevenueResult[0]?.totalRevenue || 0,
-      totalStock: totalStockResult[0]?.stock || 0,
-      statusCounts: orderStatusCounts.reduce((acc, item) => {
-        acc[item._id] = item.count
-        return acc
-      }, {}),
+      totalRevenue,
+      totalStock,
+      statusCounts, // ✅ REQUIRED
     })
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Could not load dashboard stats' })
+  } catch (err) {
+    res.status(500).json({ message: "Dashboard error" })
   }
 })
 
-app.get('*', (req, res) => {
-  if (req.path.startsWith('/api')) {
-    return res.status(404).json({ message: 'API route not found' })
+// ================= IMAGE UPLOAD =================
+app.post("/api/upload", upload.single("image"), async (req, res) => {
+  try {
+    const file = req.file
+    if (!file) return res.status(400).json({ message: "No file" })
+
+    const dataUri = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`
+    const result = await cloudinary.uploader.upload(dataUri)
+
+    res.json({ url: result.secure_url })
+  } catch {
+    res.status(500).json({ message: "Upload failed" })
   }
-  res.sendFile(path.join(staticPath, 'index.html'))
 })
 
-mongoose
-  .connect(MONGODB_URI)
-  .then(async () => {
-    console.log('MongoDB connected')
-    await createAdminUser()
-    app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`)
+// ================= PAYMENT =================
+app.use("/api/payment", paymentRoutes)
+
+// ================= STATIC =================
+app.use(express.static(staticPath))
+
+// ================= API 404 FIX =================
+app.use("/api", (req, res) => {
+  res.status(404).json({ message: "API route not found" })
+})
+
+// ================= FRONTEND =================
+app.get("*", (req, res) => {
+  res.sendFile(path.join(staticPath, "index.html"))
+})
+
+// ================= DB =================
+mongoose.connect(MONGODB_URI)
+  .then(() => {
+    console.log("✅ MongoDB Connected")
+    const server = app.listen(PORT, () =>
+      console.log(`🚀 Server running on http://localhost:${PORT}`)
+    )
+    
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.log(`⚠️  Port ${PORT} is in use, trying ${PORT + 1}...`)
+        const altServer = app.listen(PORT + 1, () =>
+          console.log(`🚀 Server running on http://localhost:${PORT + 1}`)
+        )
+      } else {
+        console.error(err)
+      }
     })
   })
-  .catch((error) => console.error('MongoDB connection error:', error.message))
+  .catch(console.error)
